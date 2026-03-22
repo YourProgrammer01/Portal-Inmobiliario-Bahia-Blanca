@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  AGENCY
+  PARTICULAR
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PropertyType {
+  HOUSE
+  APARTMENT
+  LAND
+  COMMERCIAL
+  OFFICE
+}
+
+enum OperationType {
+  SALE
+  RENT
+}
+
+enum PublisherType {
+  AGENCY
+  PARTICULAR
+}
+
+enum PropertyStatus {
+  ACTIVE
+  PAUSED
+  SOLD
+  RENTED
+}
+
+model User {
+  id                String             @id @default(uuid())
+  email             String             @unique
+  passwordHash      String
+  role              UserRole
+  twoFactorSecret   String?
+  twoFactorEnabled  Boolean            @default(false)
+  refreshTokenHash  String?
+  loginAttempts     Int                @default(0)
+  lockedUntil       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  agency            Agency?
+  particular        Particular?
+}
+
+model Agency {
+  id                 String             @id @default(uuid())
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String
+  phone              String
+  address            String
+  city               String             @default("Bahia Blanca")
+  logoUrl            String?
+  licenseNumber      String
+  dniFrontUrl        String
+  dniBackUrl         String
+  selfieUrl          String
+  verificationStatus VerificationStatus @default(PENDING)
+  rejectionReason    String?
+  isVerified         Boolean            @default(false)
+  properties         Property[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+model Particular {
+  id                 String             @id @default(uuid())
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName          String
+  lastName           String
+  phone              String
+  city               String             @default("Bahia Blanca")
+  dniFrontUrl        String
+  dniBackUrl         String
+  selfieUrl          String
+  verificationStatus VerificationStatus @default(PENDING)
+  rejectionReason    String?
+  isVerified         Boolean            @default(false)
+  properties         Property[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+model Property {
+  id             String         @id @default(uuid())
+  title          String
+  description    String
+  price          Float
+  currency       String         @default("ARS")
+  operationType  OperationType
+  propertyType   PropertyType
+  publisherType  PublisherType
+  status         PropertyStatus @default(ACTIVE)
+  city           String         @default("Bahia Blanca")
+  neighborhood   String?
+  address        String
+  bedrooms       Int?
+  bathrooms      Int?
+  squareMeters   Float?
+  coveredMeters  Float?
+  garages        Int?
+  contactPhone   String
+  agencyId       String?
+  agency         Agency?        @relation(fields: [agencyId], references: [id], onDelete: SetNull)
+  particularId   String?
+  particular     Particular?    @relation(fields: [particularId], references: [id], onDelete: SetNull)
+  images         PropertyImage[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model PropertyImage {
+  id          String   @id @default(uuid())
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  url         String
+  publicId    String
+  room        String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  tokenHash   String   @unique
+  userId      String
+  expiresAt   DateTime
+  revoked     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
