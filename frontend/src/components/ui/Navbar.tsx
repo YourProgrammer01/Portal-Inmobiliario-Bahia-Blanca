@@ -37,9 +37,15 @@ export const Navbar = () => {
 
             {user ? (
               <div className="flex items-center gap-3">
+                {user.role === 'ADMIN' ? (
+                <Link to="/admin" className="flex items-center gap-1 text-gray-600 hover:text-primary-600 transition-colors text-sm font-medium">
+                  <LayoutDashboard size={16} /> Admin
+                </Link>
+              ) : (
                 <Link to="/dashboard" className="flex items-center gap-1 text-gray-600 hover:text-primary-600 transition-colors text-sm font-medium">
                   <LayoutDashboard size={16} /> Dashboard
                 </Link>
+              )}
                 <button onClick={handleLogout} className="flex items-center gap-1 btn-secondary text-sm py-1.5">
                   <LogOut size={16} /> Salir
                 </button>

@@ -7,6 +7,9 @@ import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { PublishPropertyPage } from './pages/PublishPropertyPage'
+import { PropertyDetailPage } from './pages/PropertyDetailPage'
+import { EditPropertyPage } from './pages/EditPropertyPage'
+import { AdminPage } from './pages/AdminPage'
 
 export default function App() {
   return (
@@ -16,20 +19,17 @@ export default function App() {
           <Navbar />
           <main className="flex-1">
             <Routes>
-              {/* Marketplace general */}
+              {/* Marketplace */}
               <Route path="/" element={<HomePage />} />
-
-              {/* Sección ventas */}
               <Route path="/propiedades" element={<HomePage />} />
-
-              {/* Sección alquileres - misma interfaz, filtro por RENT */}
               <Route path="/alquileres" element={<HomePage defaultOperationType="RENT" />} />
+              <Route path="/propiedad/:id" element={<PropertyDetailPage />} />
 
               {/* Auth */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/registro" element={<RegisterPage />} />
 
-              {/* Rutas protegidas - Inmobiliarias y Particulares */}
+              {/* Inmobiliarias y Particulares */}
               <Route
                 path="/dashboard"
                 element={
@@ -46,10 +46,36 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/editar/:id"
+                element={
+                  <ProtectedRoute roles={['AGENCY', 'PARTICULAR']}>
+                    <EditPropertyPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Admin */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute roles={['ADMIN']}>
+                    <AdminPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* 404 */}
+              <Route path="*" element={
+                <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-400">
+                  <p className="text-6xl font-bold mb-4">404</p>
+                  <p className="text-lg">Página no encontrada</p>
+                </div>
+              } />
             </Routes>
           </main>
           <footer className="bg-white border-t border-gray-200 py-6 text-center text-sm text-gray-500">
-            © {new Date().getFullYear()} PIB - Portal Inmobiliario Bahiense · Bahía Blanca, Argentina
+            © {new Date().getFullYear()} PIB — Portal Inmobiliario Bahiense · Bahía Blanca, Argentina
           </footer>
         </div>
       </AuthProvider>
