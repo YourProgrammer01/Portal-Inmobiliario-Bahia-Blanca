@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import { prisma } from '../config/prisma'
+import https from 'https'
 import {
   hashPassword, comparePassword, hashToken,
   signAccessToken, signRefreshToken, verifyRefreshToken,
@@ -11,6 +12,23 @@ import { AuthRequest } from '../middleware/auth.middleware'
 
 const MAX_LOGIN_ATTEMPTS = 5
 const LOCK_DURATION_MS = 15 * 60 * 1000
+
+const reverseGeocode = (lat: number, lon: number): Promise<string> =>
+  new Promise((resolve) => {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=es`
+    https.get(url, { headers: { 'User-Agent': 'PIB-Portal/1.0' } }, (res) => {
+      let data = ''
+      res.on('data', chunk => { data += chunk })
+      res.on('end', () => {
+        try {
+          const geo = JSON.parse(data) as { address?: { city?: string; town?: string; village?: string; state?: string; country?: string } }
+          const a = geo.address ?? {}
+          const locality = a.city ?? a.town ?? a.village
+          resolve([locality, a.state, a.country].filter(Boolean).join(', '))
+        } catch { resolve('') }
+      })
+    }).on('error', () => resolve(''))
+  })
 
 export const registerAgency = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -116,7 +134,7 @@ export const registerParticular = async (req: Request, res: Response): Promise<v
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password, location } = req.body as { email: string; password: string; location?: string }
+    const { email, password, coords } = req.body as { email: string; password: string; coords?: { lat: number; lon: number } }
 
     const user = await prisma.user.findUnique({
       where: { email },
@@ -167,12 +185,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Reset intentos fallidos + guardar ubicación
+    let location: string | undefined
+    if (coords?.lat && coords?.lon) {
+      location = await reverseGeocode(coords.lat, coords.lon)
+    }
     await prisma.user.update({
       where: { id: user.id },
       data: {
         loginAttempts: 0,
         lockedUntil: null,
-        ...(location ? { lastLoginLocation: location, lastLoginAt: new Date() } : {}),
+        ...(location ? { lastLoginLocation: location, lastLoginAt: new Date() } : { lastLoginAt: new Date() }),
       },
     })
 

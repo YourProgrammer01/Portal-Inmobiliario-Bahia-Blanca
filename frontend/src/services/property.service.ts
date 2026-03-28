@@ -2,8 +2,8 @@ import api from './api'
 import { Property, PropertyFilters, PaginatedResponse, AuthResponse } from '../types'
 
 // --- Auth ---
-export const loginService = async (email: string, password: string, location?: string): Promise<AuthResponse> => {
-  const { data } = await api.post<AuthResponse>('/auth/login', { email, password, location })
+export const loginService = async (email: string, password: string, coords?: { lat: number; lon: number }): Promise<AuthResponse> => {
+  const { data } = await api.post<AuthResponse>('/auth/login', { email, password, coords })
   return data
 }
 

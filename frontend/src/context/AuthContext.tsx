@@ -29,22 +29,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   const login = async (email: string, password: string) => {
-    let location: string | undefined
+    let coords: { lat: number; lon: number } | undefined
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
         navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
       )
-      const { latitude: lat, longitude: lon } = pos.coords
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
-        { headers: { 'Accept-Language': 'es' } }
-      )
-      const geo = await res.json() as { address?: { city?: string; town?: string; state?: string; country?: string } }
-      const a = geo.address ?? {}
-      location = [a.city ?? a.town, a.state, a.country].filter(Boolean).join(', ')
-    } catch { /* permiso denegado o timeout — continuar sin ubicación */ }
+      coords = { lat: pos.coords.latitude, lon: pos.coords.longitude }
+    } catch { /* permiso denegado o timeout */ }
 
-    const { accessToken, user: userData } = await loginService(email, password, location)
+    const { accessToken, user: userData } = await loginService(email, password, coords)
     sessionStorage.setItem('accessToken', accessToken)
     sessionStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
