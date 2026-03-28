@@ -26,8 +26,15 @@ app.use(helmet({
 }))
 
 // CORS estricto
+const allowedOrigins = [
+  config.frontendUrl,
+  'https://project-vd92w.vercel.app',
+]
 app.use(cors({
-  origin: config.frontendUrl,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) callback(null, true)
+    else callback(new Error('Not allowed by CORS'))
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
