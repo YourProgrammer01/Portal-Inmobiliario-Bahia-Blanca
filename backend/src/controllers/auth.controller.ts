@@ -204,27 +204,34 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    // Reset intentos fallidos + guardar ubicación
-    let location = ''
-    if (coords?.lat && coords?.lon) {
-      location = await getLocationFromCoords(coords.lat, coords.lon)
-    }
-    if (!location) {
-      const forwarded = req.headers['x-forwarded-for'] as string
-      const realIp = req.headers['x-real-ip'] as string
-      const socketIp = req.socket.remoteAddress || ''
-      const ip = forwarded?.split(',')[0]?.trim() || realIp || socketIp
-      location = await getLocationFromIp(ip)
-    }
+    // Reset intentos fallidos
     await prisma.user.update({
       where: { id: user.id },
-      data: {
-        loginAttempts: 0,
-        lockedUntil: null,
-        lastLoginAt: new Date(),
-        ...(location ? { lastLoginLocation: location } : {}),
-      },
+      data: { loginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },
     })
+
+    // Guardar ubicación en segundo plano (no bloquea la respuesta)
+    void (async () => {
+      try {
+        let location = ''
+        if (coords?.lat && coords?.lon) {
+          location = await getLocationFromCoords(coords.lat, coords.lon)
+        }
+        if (!location) {
+          const forwarded = req.headers['x-forwarded-for'] as string
+          const realIp = req.headers['x-real-ip'] as string
+          const socketIp = req.socket.remoteAddress || ''
+          const ip = forwarded?.split(',')[0]?.trim() || realIp || socketIp
+          location = await getLocationFromIp(ip)
+        }
+        if (location) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLoginLocation: location },
+          })
+        }
+      } catch { /* silencioso */ }
+    })()
 
     const tokenPayload = { userId: user.id, role: user.role }
     const accessToken = signAccessToken(tokenPayload)
