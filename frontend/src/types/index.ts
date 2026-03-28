@@ -11,6 +11,7 @@ export interface User {
   role: UserRole
   name: string
   isVerified: boolean
+  isSuspended?: boolean
 }
 
 export interface PropertyImage {

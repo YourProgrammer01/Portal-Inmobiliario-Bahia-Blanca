@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { Navbar } from './components/ui/Navbar'
 import { ProtectedRoute } from './components/ui/ProtectedRoute'
@@ -10,6 +10,14 @@ import { PublishPropertyPage } from './pages/PublishPropertyPage'
 import { PropertyDetailPage } from './pages/PropertyDetailPage'
 import { EditPropertyPage } from './pages/EditPropertyPage'
 import { AdminPage } from './pages/AdminPage'
+import { SuspendedPage } from './pages/SuspendedPage'
+import { useAuth } from './context/AuthContext'
+
+const SuspendedGuard = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth()
+  if (user?.isSuspended) return <Navigate to="/suspendida" replace />
+  return <>{children}</>
+}
 
 export default function App() {
   return (
@@ -34,7 +42,9 @@ export default function App() {
                 path="/dashboard"
                 element={
                   <ProtectedRoute roles={['AGENCY', 'PARTICULAR']}>
-                    <DashboardPage />
+                    <SuspendedGuard>
+                      <DashboardPage />
+                    </SuspendedGuard>
                   </ProtectedRoute>
                 }
               />
@@ -42,7 +52,9 @@ export default function App() {
                 path="/publicar"
                 element={
                   <ProtectedRoute roles={['AGENCY', 'PARTICULAR']}>
-                    <PublishPropertyPage />
+                    <SuspendedGuard>
+                      <PublishPropertyPage />
+                    </SuspendedGuard>
                   </ProtectedRoute>
                 }
               />
@@ -50,10 +62,15 @@ export default function App() {
                 path="/editar/:id"
                 element={
                   <ProtectedRoute roles={['AGENCY', 'PARTICULAR']}>
-                    <EditPropertyPage />
+                    <SuspendedGuard>
+                      <EditPropertyPage />
+                    </SuspendedGuard>
                   </ProtectedRoute>
                 }
               />
+
+              {/* Suspendida */}
+              <Route path="/suspendida" element={<SuspendedPage />} />
 
               {/* Admin */}
               <Route

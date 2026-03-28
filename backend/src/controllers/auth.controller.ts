@@ -151,6 +151,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return
     }
 
+    // Verificar suspensión
+    if (user.isSuspended) {
+      res.status(403).json({ error: 'ACCOUNT_SUSPENDED' })
+      return
+    }
+
     // Verificar que esté aprobado (excepto admin)
     if (user.role !== 'ADMIN') {
       const profile = user.agency || user.particular
@@ -190,6 +196,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         role: user.role,
         name: user.agency?.name ?? `${user.particular?.firstName} ${user.particular?.lastName}`,
         isVerified: profile?.isVerified ?? false,
+        isSuspended: user.isSuspended,
       },
     })
   } catch {

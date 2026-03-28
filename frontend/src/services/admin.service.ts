@@ -37,3 +37,23 @@ export const verifyParticularService = async (
 ): Promise<void> => {
   await api.patch(`/admin/verify/particular/${id}`, { status, rejectionReason })
 }
+
+export const getAllUsersService = async (): Promise<AdminUser[]> => {
+  const { data } = await api.get<AdminUser[]>('/admin/users')
+  return data
+}
+
+export const toggleSuspendService = async (id: string): Promise<{ isSuspended: boolean }> => {
+  const { data } = await api.patch<{ isSuspended: boolean }>(`/admin/users/${id}/suspend`)
+  return data
+}
+
+export interface AdminUser {
+  id: string
+  email: string
+  role: 'AGENCY' | 'PARTICULAR'
+  isSuspended: boolean
+  createdAt: string
+  agency?: { id: string; name: string; phone: string; city: string; isVerified: boolean }
+  particular?: { id: string; firstName: string; lastName: string; phone: string; city: string; isVerified: boolean }
+}

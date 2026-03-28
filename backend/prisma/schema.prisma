@@ -55,6 +55,7 @@ model User {
   refreshTokenHash  String?
   loginAttempts     Int                @default(0)
   lockedUntil       DateTime?
+  isSuspended       Boolean            @default(false)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   agency            Agency?

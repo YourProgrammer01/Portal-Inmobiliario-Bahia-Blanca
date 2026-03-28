@@ -33,6 +33,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     sessionStorage.setItem('accessToken', accessToken)
     sessionStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
+    if (userData.isSuspended) {
+      window.location.href = '/suspendida'
+    }
   }
 
   const logout = async () => {

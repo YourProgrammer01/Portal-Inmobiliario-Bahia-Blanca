@@ -139,3 +139,50 @@ export const getDashboardStats = async (_req: Request, res: Response): Promise<v
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 }
+
+export const getAllUsers = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { role: { not: 'ADMIN' } },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isSuspended: true,
+        createdAt: true,
+        agency: { select: { id: true, name: true, phone: true, city: true, isVerified: true } },
+        particular: { select: { id: true, firstName: true, lastName: true, phone: true, city: true, isVerified: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+    res.json(users)
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' })
+  }
+}
+
+export const toggleSuspendUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params['id'] as string
+    const user = await prisma.user.findUnique({ where: { id } })
+    if (!user) { res.status(404).json({ error: 'Usuario no encontrado' }); return }
+    if (user.role === 'ADMIN') { res.status(403).json({ error: 'No se puede suspender al administrador' }); return }
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { isSuspended: !user.isSuspended },
+    })
+
+    // Revocar todos los refresh tokens activos si se suspende
+    if (updated.isSuspended) {
+      await prisma.refreshToken.updateMany({
+        where: { userId: id, revoked: false },
+        data: { revoked: true },
+      })
+    }
+
+    res.json({ isSuspended: updated.isSuspended })
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' })
+  }
+}

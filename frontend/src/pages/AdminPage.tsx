@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import {
   Building2, Users, ShieldCheck, Clock, CheckCircle,
-  XCircle, Eye, LayoutDashboard, FileText
+  XCircle, Eye, LayoutDashboard, FileText, UserX, UserCheck
 } from 'lucide-react'
 import { useAdmin, PendingAgency, PendingParticular } from '../hooks/useAdmin'
 import {
-  verifyAgencyService, verifyParticularService, getDocumentUrlsService
+  verifyAgencyService, verifyParticularService, getDocumentUrlsService,
+  getAllUsersService, toggleSuspendService, AdminUser
 } from '../services/admin.service'
 
-type Tab = 'dashboard' | 'agencies' | 'particulars'
+type Tab = 'dashboard' | 'agencies' | 'particulars' | 'users'
 
 const StatCard = ({ icon: Icon, label, value, color }: {
   icon: React.ElementType; label: string; value: number | string; color: string
@@ -156,6 +157,32 @@ export const AdminPage = () => {
   const [tab, setTab] = useState<Tab>('dashboard')
   const [processing, setProcessing] = useState<string | null>(null)
   const [docModal, setDocModal] = useState<{ type: 'agency' | 'particular'; id: string; name: string } | null>(null)
+  const [allUsers, setAllUsers] = useState<AdminUser[] | null>(null)
+  const [loadingUsers, setLoadingUsers] = useState(false)
+
+  const loadUsers = async () => {
+    setLoadingUsers(true)
+    try {
+      setAllUsers(await getAllUsersService())
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  const handleTabChange = (t: Tab) => {
+    setTab(t)
+    if (t === 'users' && !allUsers) loadUsers()
+  }
+
+  const handleToggleSuspend = async (userId: string) => {
+    setProcessing(userId)
+    try {
+      const { isSuspended } = await toggleSuspendService(userId)
+      setAllUsers(prev => prev?.map(u => u.id === userId ? { ...u, isSuspended } : u) ?? null)
+    } finally {
+      setProcessing(null)
+    }
+  }
 
   const handleVerifyAgency = async (id: string, status: 'APPROVED' | 'REJECTED', reason?: string) => {
     setProcessing(id)
@@ -181,6 +208,7 @@ export const AdminPage = () => {
     { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { key: 'agencies', label: 'Inmobiliarias', icon: Building2, badge: pendingAgencies.length },
     { key: 'particulars', label: 'Particulares', icon: Users, badge: pendingParticulars.length },
+    { key: 'users', label: 'Usuarios', icon: UserX },
   ]
 
   return (
@@ -200,7 +228,7 @@ export const AdminPage = () => {
         {tabs.map(({ key, label, icon: Icon, badge }) => (
           <button
             key={key}
-            onClick={() => setTab(key)}
+            onClick={() => handleTabChange(key)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               tab === key
                 ? 'bg-white text-primary-700 shadow-sm'
@@ -339,6 +367,76 @@ export const AdminPage = () => {
                   onReject={(reason) => handleVerifyParticular(p.id, 'REJECTED', reason)}
                 />
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Usuarios — suspensión */}
+      {tab === 'users' && (
+        <div className="space-y-4">
+          <p className="text-gray-600 text-sm flex items-center gap-2">
+            <UserX size={16} />
+            Gestioná el acceso de inmobiliarias y particulares
+          </p>
+          {loadingUsers ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => <div key={i} className="card p-5 h-20 animate-pulse bg-gray-100" />)}
+            </div>
+          ) : allUsers?.length === 0 ? (
+            <div className="card p-10 text-center text-gray-400">
+              <Users size={40} className="mx-auto mb-3" />
+              <p>No hay usuarios registrados</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {allUsers?.map(u => {
+                const name = u.agency?.name ?? `${u.particular?.firstName} ${u.particular?.lastName}`
+                const phone = u.agency?.phone ?? u.particular?.phone ?? ''
+                const city = u.agency?.city ?? u.particular?.city ?? ''
+                const isVerified = u.agency?.isVerified ?? u.particular?.isVerified ?? false
+                return (
+                  <div key={u.id} className={`card p-5 space-y-3 ${u.isSuspended ? 'border-red-200 bg-red-50' : ''}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-gray-900">{name}</p>
+                        <p className="text-sm text-gray-500">{u.email}</p>
+                        <p className="text-sm text-gray-500">{phone} · {city}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            u.role === 'AGENCY' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'
+                          }`}>
+                            {u.role === 'AGENCY' ? 'Inmobiliaria' : 'Particular'}
+                          </span>
+                          {isVerified ? (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Verificado</span>
+                          ) : (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">Pendiente</span>
+                          )}
+                          {u.isSuspended && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Suspendido</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleToggleSuspend(u.id)}
+                        disabled={processing === u.id}
+                        title={u.isSuspended ? 'Reactivar cuenta' : 'Suspender cuenta'}
+                        className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0 ${
+                          u.isSuspended
+                            ? 'bg-green-500 hover:bg-green-600 text-white'
+                            : 'bg-red-500 hover:bg-red-600 text-white'
+                        }`}
+                      >
+                        {u.isSuspended
+                          ? <><UserCheck size={13} /> Reactivar</>
+                          : <><UserX size={13} /> Suspender</>
+                        }
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
