@@ -41,9 +41,9 @@ const getLocationFromIp = async (ip: string): Promise<string> => {
   try {
     const cleanIp = ip.replace('::ffff:', '')
     if (cleanIp === '127.0.0.1' || cleanIp === '::1') return ''
-    const data = await httpGet(`http://ip-api.com/json/${cleanIp}?lang=es&fields=city,regionName,country`)
-    const geo = JSON.parse(data) as { city?: string; regionName?: string; country?: string }
-    return [geo.city, geo.regionName, geo.country].filter(Boolean).join(', ')
+    const data = await httpGet(`https://ipinfo.io/${cleanIp}/json`)
+    const geo = JSON.parse(data) as { city?: string; region?: string; country?: string }
+    return [geo.city, geo.region, geo.country].filter(Boolean).join(', ')
   } catch { return '' }
 }
 
