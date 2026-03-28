@@ -11,6 +11,7 @@ import particularRoutes from './routes/particular.routes'
 import adminRoutes from './routes/admin.routes'
 
 const app = express()
+app.set('trust proxy', 1)
 
 // Security headers
 app.use(helmet({
