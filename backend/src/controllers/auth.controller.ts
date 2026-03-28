@@ -13,22 +13,39 @@ import { AuthRequest } from '../middleware/auth.middleware'
 const MAX_LOGIN_ATTEMPTS = 5
 const LOCK_DURATION_MS = 15 * 60 * 1000
 
-const reverseGeocode = (lat: number, lon: number): Promise<string> =>
-  new Promise((resolve) => {
-    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=es`
-    https.get(url, { headers: { 'User-Agent': 'PIB-Portal/1.0' } }, (res) => {
+const httpGet = (url: string, headers: Record<string, string> = {}): Promise<string> =>
+  new Promise((resolve, reject) => {
+    https.get(url, { headers }, (res) => {
       let data = ''
-      res.on('data', chunk => { data += chunk })
-      res.on('end', () => {
-        try {
-          const geo = JSON.parse(data) as { address?: { city?: string; town?: string; village?: string; state?: string; country?: string } }
-          const a = geo.address ?? {}
-          const locality = a.city ?? a.town ?? a.village
-          resolve([locality, a.state, a.country].filter(Boolean).join(', '))
-        } catch { resolve('') }
-      })
-    }).on('error', () => resolve(''))
+      res.on('data', (chunk: string) => { data += chunk })
+      res.on('end', () => resolve(data))
+    }).on('error', reject)
   })
+
+const getLocationFromCoords = async (lat: number, lon: number): Promise<string> => {
+  try {
+    const data = await httpGet(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=es`,
+      { 'User-Agent': 'PIB-Portal/1.0 (portalinmobiliario.bahiablanca@gmail.com)' }
+    )
+    const geo = JSON.parse(data) as { address?: { city?: string; town?: string; village?: string; state?: string; country?: string } }
+    const a = geo.address ?? {}
+    const locality = a.city ?? a.town ?? a.village
+    const result = [locality, a.state, a.country].filter(Boolean).join(', ')
+    if (result) return result
+  } catch { /* fallback */ }
+  return ''
+}
+
+const getLocationFromIp = async (ip: string): Promise<string> => {
+  try {
+    const cleanIp = ip.replace('::ffff:', '')
+    if (cleanIp === '127.0.0.1' || cleanIp === '::1') return ''
+    const data = await httpGet(`http://ip-api.com/json/${cleanIp}?lang=es&fields=city,regionName,country`)
+    const geo = JSON.parse(data) as { city?: string; regionName?: string; country?: string }
+    return [geo.city, geo.regionName, geo.country].filter(Boolean).join(', ')
+  } catch { return '' }
+}
 
 export const registerAgency = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -185,16 +202,21 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Reset intentos fallidos + guardar ubicación
-    let location: string | undefined
+    let location = ''
     if (coords?.lat && coords?.lon) {
-      location = await reverseGeocode(coords.lat, coords.lon)
+      location = await getLocationFromCoords(coords.lat, coords.lon)
+    }
+    if (!location) {
+      const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || ''
+      location = await getLocationFromIp(ip)
     }
     await prisma.user.update({
       where: { id: user.id },
       data: {
         loginAttempts: 0,
         lockedUntil: null,
-        ...(location ? { lastLoginLocation: location, lastLoginAt: new Date() } : { lastLoginAt: new Date() }),
+        lastLoginAt: new Date(),
+        ...(location ? { lastLoginLocation: location } : {}),
       },
     })
 
