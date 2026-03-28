@@ -1,7 +1,12 @@
 import axios from 'axios'
 
+const isProd = import.meta.env.PROD
+const baseURL = isProd
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api'
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 })
@@ -44,7 +49,10 @@ api.interceptors.response.use(
       isRefreshing = true
 
       try {
-        const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true })
+        const refreshURL = isProd
+          ? `${import.meta.env.VITE_API_URL}/api/auth/refresh`
+          : '/api/auth/refresh'
+        const { data } = await axios.post(refreshURL, {}, { withCredentials: true })
         sessionStorage.setItem('accessToken', data.accessToken)
         processQueue(null, data.accessToken)
         originalRequest.headers.Authorization = `Bearer ${data.accessToken}`
