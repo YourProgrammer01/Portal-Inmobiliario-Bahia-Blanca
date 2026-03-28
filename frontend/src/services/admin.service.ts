@@ -54,6 +54,6 @@ export interface AdminUser {
   role: 'AGENCY' | 'PARTICULAR'
   isSuspended: boolean
   createdAt: string
-  agency?: { id: string; name: string; phone: string; city: string; isVerified: boolean }
+  agency?: { id: string; name: string; phone: string; city: string; address: string; licenseNumber: string; isVerified: boolean }
   particular?: { id: string; firstName: string; lastName: string; phone: string; city: string; isVerified: boolean }
 }

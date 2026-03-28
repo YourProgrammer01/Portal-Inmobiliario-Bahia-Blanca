@@ -159,6 +159,7 @@ export const AdminPage = () => {
   const [docModal, setDocModal] = useState<{ type: 'agency' | 'particular'; id: string; name: string } | null>(null)
   const [allUsers, setAllUsers] = useState<AdminUser[] | null>(null)
   const [loadingUsers, setLoadingUsers] = useState(false)
+  const [userModal, setUserModal] = useState<AdminUser | null>(null)
 
   const loadUsers = async () => {
     setLoadingUsers(true)
@@ -396,7 +397,13 @@ export const AdminPage = () => {
                 const city = u.agency?.city ?? u.particular?.city ?? ''
                 const isVerified = u.agency?.isVerified ?? u.particular?.isVerified ?? false
                 return (
-                  <div key={u.id} className={`card p-5 space-y-3 ${u.isSuspended ? 'border-red-200 bg-red-50' : ''}`}>
+                  <div
+                    key={u.id}
+                    onClick={() => setUserModal(u)}
+                    className={`card p-5 space-y-3 cursor-pointer hover:shadow-md transition-shadow ${
+                      u.isSuspended ? 'border-red-200 bg-red-50' : ''
+                    }`}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold text-gray-900">{name}</p>
@@ -418,21 +425,7 @@ export const AdminPage = () => {
                           )}
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleToggleSuspend(u.id)}
-                        disabled={processing === u.id}
-                        title={u.isSuspended ? 'Reactivar cuenta' : 'Suspender cuenta'}
-                        className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0 ${
-                          u.isSuspended
-                            ? 'bg-green-500 hover:bg-green-600 text-white'
-                            : 'bg-red-500 hover:bg-red-600 text-white'
-                        }`}
-                      >
-                        {u.isSuspended
-                          ? <><UserCheck size={13} /> Reactivar</>
-                          : <><UserX size={13} /> Suspender</>
-                        }
-                      </button>
+                      <Eye size={16} className="text-gray-400 flex-shrink-0 mt-1" />
                     </div>
                   </div>
                 )
@@ -441,6 +434,99 @@ export const AdminPage = () => {
           )}
         </div>
       )}
+
+      {/* Modal detalle de usuario */}
+      {userModal && (() => {
+        const u = userModal
+        const name = u.agency?.name ?? `${u.particular?.firstName} ${u.particular?.lastName}`
+        const phone = u.agency?.phone ?? u.particular?.phone ?? ''
+        const city = u.agency?.city ?? u.particular?.city ?? ''
+        const isVerified = u.agency?.isVerified ?? u.particular?.isVerified ?? false
+        const profileId = u.agency?.id ?? u.particular?.id ?? ''
+        const docType = u.role === 'AGENCY' ? 'agency' : 'particular'
+        return (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setUserModal(null)}>
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full space-y-4" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-gray-900 text-lg">{name}</h3>
+                <button onClick={() => setUserModal(null)} className="text-gray-400 hover:text-gray-600">
+                  <XCircle size={22} />
+                </button>
+              </div>
+
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Email</span>
+                  <span className="font-medium text-gray-900">{u.email}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Teléfono</span>
+                  <span className="font-medium text-gray-900">{phone}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Ciudad</span>
+                  <span className="font-medium text-gray-900">{city}</span>
+                </div>
+                {u.agency?.licenseNumber && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Matrícula</span>
+                    <span className="font-medium text-gray-900">{u.agency.licenseNumber}</span>
+                  </div>
+                )}
+                {u.agency?.address && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Dirección</span>
+                    <span className="font-medium text-gray-900">{u.agency.address}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Registrado</span>
+                  <span className="font-medium text-gray-900">{new Date(u.createdAt).toLocaleDateString('es-AR')}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">Estado</span>
+                  <div className="flex gap-1.5">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      u.role === 'AGENCY' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'
+                    }`}>{u.role === 'AGENCY' ? 'Inmobiliaria' : 'Particular'}</span>
+                    {isVerified
+                      ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Verificado</span>
+                      : <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">Pendiente</span>
+                    }
+                    {u.isSuspended && <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Suspendido</span>}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 pt-2">
+                <button
+                  onClick={() => { setUserModal(null); setDocModal({ type: docType, id: profileId, name }) }}
+                  className="flex items-center justify-center gap-2 btn-secondary text-sm py-2"
+                >
+                  <Eye size={15} /> Ver documentos
+                </button>
+                <button
+                  onClick={async () => {
+                    await handleToggleSuspend(u.id)
+                    setUserModal(prev => prev ? { ...prev, isSuspended: !prev.isSuspended } : null)
+                  }}
+                  disabled={processing === u.id}
+                  className={`flex items-center justify-center gap-2 text-sm font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 ${
+                    u.isSuspended
+                      ? 'bg-green-500 hover:bg-green-600 text-white'
+                      : 'bg-red-500 hover:bg-red-600 text-white'
+                  }`}
+                >
+                  {u.isSuspended
+                    ? <><UserCheck size={15} /> Reactivar cuenta</>
+                    : <><UserX size={15} /> Suspender cuenta</>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Modal de documentos */}
       {docModal && (
