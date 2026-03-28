@@ -208,19 +208,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     let location = ''
     if (coords?.lat && coords?.lon) {
       location = await getLocationFromCoords(coords.lat, coords.lon)
-      console.log('[LOGIN] coords:', coords, '-> location:', location)
     }
     if (!location) {
       const forwarded = req.headers['x-forwarded-for'] as string
       const realIp = req.headers['x-real-ip'] as string
       const socketIp = req.socket.remoteAddress || ''
-      console.log('[LOGIN] x-forwarded-for:', forwarded)
-      console.log('[LOGIN] x-real-ip:', realIp)
-      console.log('[LOGIN] socket.remoteAddress:', socketIp)
       const ip = forwarded?.split(',')[0]?.trim() || realIp || socketIp
-      console.log('[LOGIN] using IP:', ip)
       location = await getLocationFromIp(ip)
-      console.log('[LOGIN] IP location:', location)
     }
     await prisma.user.update({
       where: { id: user.id },
