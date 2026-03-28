@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Building2, Users, ShieldCheck, Clock, CheckCircle,
-  XCircle, Eye, LayoutDashboard, FileText, UserX, UserCheck
+  XCircle, Eye, LayoutDashboard, FileText, UserX, UserCheck, MapPin
 } from 'lucide-react'
 import { useAdmin, PendingAgency, PendingParticular } from '../hooks/useAdmin'
 import {
@@ -400,15 +400,24 @@ export const AdminPage = () => {
                   <div
                     key={u.id}
                     onClick={() => setUserModal(u)}
-                    className={`card p-5 space-y-3 cursor-pointer hover:shadow-md transition-shadow ${
+                    className={`card p-5 space-y-2 cursor-pointer hover:shadow-md transition-shadow ${
                       u.isSuspended ? 'border-red-200 bg-red-50' : ''
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-semibold text-gray-900">{name}</p>
                         <p className="text-sm text-gray-500">{u.email}</p>
                         <p className="text-sm text-gray-500">{phone} · {city}</p>
+                        {u.lastLoginLocation && (
+                          <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                            <MapPin size={11} />
+                            {u.lastLoginLocation}
+                            {u.lastLoginAt && (
+                              <span className="ml-1">· {new Date(u.lastLoginAt).toLocaleDateString('es-AR')}</span>
+                            )}
+                          </p>
+                        )}
                         <div className="flex items-center gap-2 mt-1">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             u.role === 'AGENCY' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'
@@ -483,6 +492,20 @@ export const AdminPage = () => {
                   <span className="text-gray-500">Registrado</span>
                   <span className="font-medium text-gray-900">{new Date(u.createdAt).toLocaleDateString('es-AR')}</span>
                 </div>
+                {u.lastLoginLocation && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Último acceso desde</span>
+                    <span className="font-medium text-gray-900 flex items-center gap-1">
+                      <MapPin size={12} className="text-gray-400" />
+                      {u.lastLoginLocation}
+                      {u.lastLoginAt && (
+                        <span className="text-gray-400 font-normal ml-1">
+                          · {new Date(u.lastLoginAt).toLocaleDateString('es-AR')}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-500">Estado</span>
                   <div className="flex gap-1.5">

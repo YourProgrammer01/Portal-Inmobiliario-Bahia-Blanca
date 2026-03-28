@@ -149,6 +149,8 @@ export const getAllUsers = async (_req: Request, res: Response): Promise<void> =
         email: true,
         role: true,
         isSuspended: true,
+        lastLoginLocation: true,
+        lastLoginAt: true,
         createdAt: true,
         agency: { select: { id: true, name: true, phone: true, address: true, city: true, licenseNumber: true, isVerified: true } },
         particular: { select: { id: true, firstName: true, lastName: true, phone: true, city: true, isVerified: true } },

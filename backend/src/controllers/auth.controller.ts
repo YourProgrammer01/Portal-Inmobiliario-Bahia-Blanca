@@ -116,7 +116,7 @@ export const registerParticular = async (req: Request, res: Response): Promise<v
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body
+    const { email, password, location } = req.body as { email: string; password: string; location?: string }
 
     const user = await prisma.user.findUnique({
       where: { email },
@@ -166,10 +166,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    // Reset intentos fallidos
+    // Reset intentos fallidos + guardar ubicación
     await prisma.user.update({
       where: { id: user.id },
-      data: { loginAttempts: 0, lockedUntil: null },
+      data: {
+        loginAttempts: 0,
+        lockedUntil: null,
+        ...(location ? { lastLoginLocation: location, lastLoginAt: new Date() } : {}),
+      },
     })
 
     const tokenPayload = { userId: user.id, role: user.role }
