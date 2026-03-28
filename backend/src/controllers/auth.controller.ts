@@ -208,8 +208,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       console.log('[LOGIN] coords:', coords, '-> location:', location)
     }
     if (!location) {
-      const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || ''
-      console.log('[LOGIN] no coords location, trying IP:', ip)
+      const forwarded = req.headers['x-forwarded-for'] as string
+      const realIp = req.headers['x-real-ip'] as string
+      const socketIp = req.socket.remoteAddress || ''
+      console.log('[LOGIN] x-forwarded-for:', forwarded)
+      console.log('[LOGIN] x-real-ip:', realIp)
+      console.log('[LOGIN] socket.remoteAddress:', socketIp)
+      const ip = forwarded?.split(',')[0]?.trim() || realIp || socketIp
+      console.log('[LOGIN] using IP:', ip)
       location = await getLocationFromIp(ip)
       console.log('[LOGIN] IP location:', location)
     }
