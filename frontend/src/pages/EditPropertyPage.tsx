@@ -3,8 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { CheckCircle } from 'lucide-react'
-import { getPropertyByIdService, updatePropertyService } from '../services/property.service'
+import { CheckCircle, Upload, X, Trash2 } from 'lucide-react'
+import {
+  getPropertyByIdService, updatePropertyService,
+  addPropertyImagesService, deletePropertyImageService,
+} from '../services/property.service'
+import { PropertyImage } from '../types'
 
 const phoneRegex = /^(\+54|0)?[1-9]\d{9,10}$/
 
@@ -29,6 +33,19 @@ const schema = z.object({
 
 type EditForm = z.infer<typeof schema>
 
+const ROOMS = [
+  { key: 'exterior', label: 'Frente / Exterior' },
+  { key: 'living', label: 'Living / Comedor' },
+  { key: 'kitchen', label: 'Cocina' },
+  { key: 'bedroom', label: 'Dormitorio' },
+  { key: 'bathroom', label: 'Baño' },
+  { key: 'garage', label: 'Garage / Cochera' },
+  { key: 'garden', label: 'Jardín / Patio / Terraza' },
+  { key: 'other', label: 'Otros' },
+]
+
+interface NewFile { room: string; file: File; preview: string }
+
 export const EditPropertyPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -36,6 +53,10 @@ export const EditPropertyPage = () => {
   const [isFetching, setIsFetching] = useState(true)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
+  const [currentImages, setCurrentImages] = useState<PropertyImage[]>([])
+  const [newFiles, setNewFiles] = useState<NewFile[]>([])
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [uploadingImages, setUploadingImages] = useState(false)
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<EditForm>({
     resolver: zodResolver(schema),
@@ -44,26 +65,71 @@ export const EditPropertyPage = () => {
   useEffect(() => {
     if (!id) return
     getPropertyByIdService(id)
-      .then(p => reset({
-        title: p.title,
-        description: p.description,
-        price: p.price,
-        currency: p.currency,
-        operationType: p.operationType,
-        propertyType: p.propertyType,
-        city: p.city,
-        neighborhood: p.neighborhood ?? '',
-        address: p.address,
-        bedrooms: p.bedrooms,
-        bathrooms: p.bathrooms,
-        squareMeters: p.squareMeters,
-        coveredMeters: p.coveredMeters,
-        garages: p.garages,
-        contactPhone: p.contactPhone,
-        status: p.status,
-      }))
+      .then(p => {
+        setCurrentImages(p.images)
+        reset({
+          title: p.title,
+          description: p.description,
+          price: p.price,
+          currency: p.currency,
+          operationType: p.operationType,
+          propertyType: p.propertyType,
+          city: p.city,
+          neighborhood: p.neighborhood ?? '',
+          address: p.address,
+          bedrooms: p.bedrooms,
+          bathrooms: p.bathrooms,
+          squareMeters: p.squareMeters,
+          coveredMeters: p.coveredMeters,
+          garages: p.garages,
+          contactPhone: p.contactPhone,
+          status: p.status,
+        })
+      })
       .finally(() => setIsFetching(false))
   }, [id, reset])
+
+  const handleDeleteImage = async (imageId: string) => {
+    if (!id || !confirm('¿Eliminar esta imagen?')) return
+    setDeletingId(imageId)
+    try {
+      await deletePropertyImageService(id, imageId)
+      setCurrentImages(prev => prev.filter(img => img.id !== imageId))
+    } catch {
+      setError('Error al eliminar la imagen')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const handleAddFile = (room: string, file: File) => {
+    const preview = URL.createObjectURL(file)
+    setNewFiles(prev => [...prev, { room, file, preview }])
+  }
+
+  const removeNewFile = (index: number) => {
+    setNewFiles(prev => {
+      URL.revokeObjectURL(prev[index].preview)
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
+  const handleUploadNewImages = async () => {
+    if (!id || newFiles.length === 0) return
+    setUploadingImages(true)
+    setError('')
+    try {
+      const formData = new FormData()
+      newFiles.forEach(({ room, file }) => formData.append(`${room}_image`, file))
+      const result = await addPropertyImagesService(id, formData)
+      setCurrentImages(result.images)
+      setNewFiles([])
+    } catch {
+      setError('Error al subir las imágenes')
+    } finally {
+      setUploadingImages(false)
+    }
+  }
 
   const onSubmit = async (data: EditForm) => {
     if (!id) return
@@ -82,7 +148,6 @@ export const EditPropertyPage = () => {
   if (isFetching) return (
     <div className="max-w-3xl mx-auto px-4 py-10 animate-pulse space-y-4">
       <div className="h-6 bg-gray-200 rounded w-1/3" />
-      <div className="h-40 bg-gray-200 rounded-xl" />
       <div className="h-40 bg-gray-200 rounded-xl" />
     </div>
   )
@@ -105,6 +170,95 @@ export const EditPropertyPage = () => {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Editar propiedad</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+
+        {/* Gestión de imágenes */}
+        <div className="card p-6 space-y-4">
+          <h2 className="font-semibold text-gray-900">Imágenes</h2>
+
+          {/* Fotos actuales */}
+          {currentImages.length > 0 && (
+            <div>
+              <p className="text-sm text-gray-500 mb-3">Fotos actuales — hacé clic en la X para eliminar</p>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {currentImages.map(img => (
+                  <div key={img.id} className="relative group">
+                    <img src={img.url} alt={img.room} className="w-full h-24 object-cover rounded-lg" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex flex-col items-center justify-center gap-1">
+                      <span className="text-white text-xs text-center px-1">{img.room}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteImage(img.id)}
+                        disabled={deletingId === img.id}
+                        className="bg-red-500 hover:bg-red-600 text-white rounded-full p-1 transition-colors disabled:opacity-50"
+                      >
+                        {deletingId === img.id
+                          ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          : <Trash2 size={14} />
+                        }
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Agregar nuevas fotos */}
+          <div>
+            <p className="text-sm text-gray-500 mb-3">Agregar nuevas fotos por ambiente</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {ROOMS.map(room => (
+                <label key={room.key} className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-gray-200 hover:border-primary-400 rounded-xl p-3 cursor-pointer transition-colors text-center">
+                  <Upload size={18} className="text-gray-400" />
+                  <span className="text-xs text-gray-600">{room.label}</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    className="hidden"
+                    onChange={e => Array.from(e.target.files ?? []).forEach(f => handleAddFile(room.key, f))}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Preview nuevas fotos */}
+          {newFiles.length > 0 && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {newFiles.map((nf, i) => (
+                  <div key={i} className="relative group">
+                    <img src={nf.preview} alt={nf.room} className="w-full h-24 object-cover rounded-lg border-2 border-primary-300" />
+                    <button
+                      type="button"
+                      onClick={() => removeNewFile(i)}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X size={12} />
+                    </button>
+                    <span className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-1 rounded">
+                      {ROOMS.find(r => r.key === nf.room)?.label ?? nf.room}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={handleUploadNewImages}
+                disabled={uploadingImages}
+                className="btn-primary text-sm py-2 flex items-center gap-2"
+              >
+                {uploadingImages
+                  ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Subiendo...</>
+                  : <><Upload size={15} /> Subir {newFiles.length} foto{newFiles.length > 1 ? 's' : ''} nueva{newFiles.length > 1 ? 's' : ''}</>
+                }
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Información básica */}
         <div className="card p-6 space-y-4">
           <h2 className="font-semibold text-gray-900">Información básica</h2>
           <div className="grid grid-cols-2 gap-4">
@@ -164,6 +318,7 @@ export const EditPropertyPage = () => {
           </div>
         </div>
 
+        {/* Ubicación */}
         <div className="card p-6 space-y-4">
           <h2 className="font-semibold text-gray-900">Ubicación</h2>
           <div className="grid grid-cols-2 gap-4">
@@ -183,6 +338,7 @@ export const EditPropertyPage = () => {
           </div>
         </div>
 
+        {/* Características */}
         <div className="card p-6 space-y-4">
           <h2 className="font-semibold text-gray-900">Características</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">

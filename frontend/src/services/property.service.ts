@@ -62,3 +62,14 @@ export const getMyPropertiesService = async (): Promise<Property[]> => {
   const { data } = await api.get<Property[]>('/properties/my')
   return data
 }
+
+export const addPropertyImagesService = async (id: string, formData: FormData): Promise<{ images: Property['images'] }> => {
+  const { data } = await api.post(`/properties/${id}/images`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+export const deletePropertyImageService = async (propertyId: string, imageId: string): Promise<void> => {
+  await api.delete(`/properties/${propertyId}/images/${imageId}`)
+}

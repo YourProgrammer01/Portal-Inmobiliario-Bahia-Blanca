@@ -7,6 +7,7 @@ import {
   getProperties, getPropertyById, createProperty,
   updateProperty, deleteProperty, getMyProperties,
 } from '../controllers/property.controller'
+import { addPropertyImages, deletePropertyImage } from '../controllers/image.controller'
 
 const router = Router()
 
@@ -22,6 +23,22 @@ router.post(
   handleMulterError,
   validate(createPropertySchema),
   createProperty
+)
+
+router.post(
+  '/:id/images',
+  authenticate,
+  requireRole('AGENCY', 'PARTICULAR', 'ADMIN'),
+  uploadPropertyImages.any(),
+  handleMulterError,
+  addPropertyImages
+)
+
+router.delete(
+  '/:id/images/:imageId',
+  authenticate,
+  requireRole('AGENCY', 'PARTICULAR', 'ADMIN'),
+  deletePropertyImage
 )
 
 router.patch(
