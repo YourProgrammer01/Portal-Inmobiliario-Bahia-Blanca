@@ -3,8 +3,11 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, MessageCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+
+const WA_NUMBER = '5492914648646'
+const WA_MSG = encodeURIComponent('Hola, me comunico para regularizar la situación de mi cuenta en el Portal Inmobiliario Bahiense.')
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
@@ -32,7 +35,7 @@ export const LoginPage = () => {
       navigate('/dashboard')
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-      setError(msg ?? 'Error al iniciar sesión')
+      setError(msg === 'ACCOUNT_SUSPENDED' ? 'SUSPENDED' : (msg ?? 'Error al iniciar sesión'))
     } finally {
       setIsLoading(false)
     }
@@ -62,7 +65,26 @@ export const LoginPage = () => {
             {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
           </div>
 
-          {error && <p className="text-red-500 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
+          {error && error !== 'SUSPENDED' && (
+            <p className="text-red-500 text-sm bg-red-50 p-3 rounded-lg">{error}</p>
+          )}
+
+          {error === 'SUSPENDED' && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+              <p className="text-red-700 text-sm leading-relaxed">
+                Su cuenta se encuentra <span className="font-semibold">suspendida por falta de pago</span>, por favor comuníquese con su asesor comercial a los fines de regularizar su situación y poder continuar operando.
+              </p>
+              <a
+                href={`https://wa.me/${WA_NUMBER}?text=${WA_MSG}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
+              >
+                <MessageCircle size={16} />
+                Contactar asesor por WhatsApp
+              </a>
+            </div>
+          )}
 
           <button type="submit" disabled={isLoading} className="btn-primary w-full">
             {isLoading ? 'Ingresando...' : 'Ingresar'}
