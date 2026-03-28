@@ -15,11 +15,13 @@ const LOCK_DURATION_MS = 15 * 60 * 1000
 
 const httpGet = (url: string, headers: Record<string, string> = {}): Promise<string> =>
   new Promise((resolve, reject) => {
-    https.get(url, { headers }, (res) => {
+    const req = https.get(url, { headers, timeout: 4000 }, (res) => {
       let data = ''
       res.on('data', (chunk: string) => { data += chunk })
       res.on('end', () => resolve(data))
-    }).on('error', reject)
+    })
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')) })
+    req.on('error', reject)
   })
 
 const getLocationFromCoords = async (lat: number, lon: number): Promise<string> => {
@@ -39,10 +41,11 @@ const getLocationFromCoords = async (lat: number, lon: number): Promise<string> 
 
 const getLocationFromIp = async (ip: string): Promise<string> => {
   try {
-    const cleanIp = ip.replace('::ffff:', '')
-    if (cleanIp === '127.0.0.1' || cleanIp === '::1') return ''
+    const cleanIp = ip.replace('::ffff:', '').trim()
+    if (!cleanIp || cleanIp === '127.0.0.1' || cleanIp === '::1') return ''
     const data = await httpGet(`https://ipinfo.io/${cleanIp}/json`)
-    const geo = JSON.parse(data) as { city?: string; region?: string; country?: string }
+    const geo = JSON.parse(data) as { city?: string; region?: string; country?: string; bogon?: boolean }
+    if (geo.bogon) return ''
     return [geo.city, geo.region, geo.country].filter(Boolean).join(', ')
   } catch { return '' }
 }
