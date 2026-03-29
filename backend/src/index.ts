@@ -4,11 +4,21 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import rateLimit from 'express-rate-limit'
 import { config } from './config/env'
+import { prisma } from './config/prisma'
 import authRoutes from './routes/auth.routes'
 import propertyRoutes from './routes/property.routes'
 import agencyRoutes from './routes/agency.routes'
 import particularRoutes from './routes/particular.routes'
 import adminRoutes from './routes/admin.routes'
+
+// Cleanup job: eliminar refresh tokens expirados/revocados cada 6 horas
+setInterval(async () => {
+  try {
+    await prisma.refreshToken.deleteMany({
+      where: { OR: [{ revoked: true }, { expiresAt: { lt: new Date() } }] },
+    })
+  } catch { /* silencioso */ }
+}, 6 * 60 * 60 * 1000)
 
 const app = express()
 app.set('trust proxy', 1)
@@ -50,12 +60,26 @@ const globalLimiter = rateLimit({
   message: { error: 'Demasiadas solicitudes, intentá más tarde.' },
 })
 
-// Rate limiting estricto para auth
+// Rate limiting estricto para auth — por IP
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  message: { error: 'Demasiados intentos, intentá en 15 minutos.' },
+})
+
+// Rate limiting por email — previene fuerza bruta distribuida desde múltiples IPs
+const authEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => {
+    const body = req.body as { email?: string }
+    return (body?.email ?? req.ip ?? 'unknown').toLowerCase()
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path !== '/login',
   message: { error: 'Demasiados intentos, intentá en 15 minutos.' },
 })
 
@@ -65,7 +89,7 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }))
 app.use(cookieParser())
 
 // Routes
-app.use('/api/auth', authLimiter, authRoutes)
+app.use('/api/auth', authLimiter, authEmailLimiter, authRoutes)
 app.use('/api/properties', propertyRoutes)
 app.use('/api/agencies', agencyRoutes)
 app.use('/api/particulars', particularRoutes)

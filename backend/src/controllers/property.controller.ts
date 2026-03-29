@@ -42,7 +42,7 @@ export const getProperties = async (req: Request, res: Response): Promise<void> 
         take: limitNum,
         orderBy: { createdAt: 'desc' },
         include: {
-          images: { orderBy: { order: 'asc' } },
+          images: { select: { id: true, url: true, room: true, order: true }, orderBy: { order: 'asc' } },
           agency: { select: { name: true, phone: true, logoUrl: true } },
           particular: { select: { firstName: true, lastName: true, phone: true } },
         },
@@ -65,7 +65,7 @@ export const getPropertyById = async (req: Request, res: Response): Promise<void
     const property = await prisma.property.findUnique({
       where: { id, status: 'ACTIVE' },
       include: {
-        images: { orderBy: { order: 'asc' } },
+        images: { select: { id: true, url: true, room: true, order: true }, orderBy: { order: 'asc' } },
         agency: { select: { name: true, phone: true, logoUrl: true, city: true } },
         particular: { select: { firstName: true, lastName: true, phone: true } },
       },

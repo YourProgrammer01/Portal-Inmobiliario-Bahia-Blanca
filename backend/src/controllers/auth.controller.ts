@@ -62,7 +62,8 @@ export const registerAgency = async (req: Request, res: Response): Promise<void>
 
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) {
-      res.status(409).json({ error: 'El email ya está registrado' })
+      // Respuesta genérica para no revelar si el email existe
+      res.status(409).json({ error: 'No se pudo completar el registro. Verificá los datos ingresados.' })
       return
     }
 
@@ -113,7 +114,7 @@ export const registerParticular = async (req: Request, res: Response): Promise<v
 
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) {
-      res.status(409).json({ error: 'El email ya está registrado' })
+      res.status(409).json({ error: 'No se pudo completar el registro. Verificá los datos ingresados.' })
       return
     }
 
@@ -230,6 +231,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             data: { lastLoginLocation: location },
           })
         }
+        // Limpiar tokens expirados o revocados del usuario (máximo cada login)
+        await prisma.refreshToken.deleteMany({
+          where: {
+            userId: user.id,
+            OR: [{ revoked: true }, { expiresAt: { lt: new Date() } }],
+          },
+        })
       } catch { /* silencioso */ }
     })()
 

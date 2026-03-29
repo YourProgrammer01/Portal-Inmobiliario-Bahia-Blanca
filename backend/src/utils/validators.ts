@@ -28,9 +28,13 @@ export const registerParticularSchema = z.object({
 })
 
 export const loginSchema = z.object({
-  email: z.string().email().toLowerCase().trim(),
+  email: z.string().email().max(100).toLowerCase().trim(),
   password: z.string().min(1).max(200),
   totpCode: z.string().length(6).optional(),
+  coords: z.object({
+    lat: z.number().min(-90).max(90),
+    lon: z.number().min(-180).max(180),
+  }).optional(),
 })
 
 export const refreshTokenSchema = z.object({
