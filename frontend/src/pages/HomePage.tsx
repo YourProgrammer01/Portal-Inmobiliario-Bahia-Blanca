@@ -4,6 +4,7 @@ import { Property, PropertyFilters } from '../types'
 import { getPropertiesService } from '../services/property.service'
 import { PropertyCard } from '../components/ui/PropertyCard'
 import { PropertyFiltersBar } from '../components/ui/PropertyFiltersBar'
+import { PropertyModal } from '../components/ui/PropertyModal'
 
 interface Props {
   defaultOperationType?: 'SALE' | 'RENT'
@@ -19,6 +20,7 @@ export const HomePage = ({ defaultOperationType }: Props) => {
     limit: 12,
     operationType: defaultOperationType,
   })
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
 
   useEffect(() => {
     const fetchProperties = async () => {
@@ -100,7 +102,7 @@ export const HomePage = ({ defaultOperationType }: Props) => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 mt-4">
-            {properties.map(p => <PropertyCard key={p.id} property={p} />)}
+            {properties.map(p => <PropertyCard key={p.id} property={p} onClick={() => setSelectedProperty(p)} />)}
           </div>
         )}
 
@@ -127,6 +129,10 @@ export const HomePage = ({ defaultOperationType }: Props) => {
           </div>
         )}
       </section>
+
+      {selectedProperty && (
+        <PropertyModal property={selectedProperty} onClose={() => setSelectedProperty(null)} />
+      )}
     </div>
   )
 }
