@@ -210,6 +210,8 @@ export const AdminPage = () => {
       setCredLoading(false)
     }
   }
+
+  const handleVerifyAgency = async (id: string, status: 'APPROVED' | 'REJECTED', reason?: string) => {
     setProcessing(id)
     try {
       await verifyAgencyService(id, status, reason)
