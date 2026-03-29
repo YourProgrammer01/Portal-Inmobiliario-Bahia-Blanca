@@ -53,6 +53,24 @@ export const sendVerificationRejected = async (email: string, name: string, reas
   })
 }
 
+export const sendPasswordResetEmail = async (email: string, resetUrl: string) => {
+  await transporter.sendMail({
+    from: `"PIB Portal" <${config.smtp.user}>`,
+    to: email,
+    subject: '🔐 Recuperar contraseña - PIB',
+    html: baseTemplate(`
+      <h2>Recuperar contraseña</h2>
+      <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta.</p>
+      <p>Hacé click en el botón para crear una nueva contraseña. El link es válido por <strong>30 minutos</strong>.</p>
+      <a href="${resetUrl}"
+         style="background: #1a56db; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 15px;">
+        Restablecer contraseña
+      </a>
+      <p style="margin-top: 20px; color: #6b7280; font-size: 13px;">Si no solicitaste este cambio, ignorá este email. Tu contraseña no será modificada.</p>
+    `),
+  })
+}
+
 export const sendWelcomeEmail = async (email: string, name: string) => {
   await transporter.sendMail({
     from: `"PIB Portal" <${config.smtp.user}>`,

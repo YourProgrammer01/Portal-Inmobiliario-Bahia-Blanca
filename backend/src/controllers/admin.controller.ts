@@ -2,6 +2,8 @@ import { Request, Response } from 'express'
 import { prisma } from '../config/prisma'
 import { getPrivateImageUrl } from '../config/cloudinary'
 import { sendVerificationApproved, sendVerificationRejected } from '../config/mailer'
+import { hashPassword, comparePassword } from '../utils/security'
+import { AuthRequest } from '../middleware/auth.middleware'
 
 export const getPendingUsers = async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -184,6 +186,53 @@ export const toggleSuspendUser = async (req: Request, res: Response): Promise<vo
     }
 
     res.json({ isSuspended: updated.isSuspended })
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' })
+  }
+}
+
+export const changeAdminCredentials = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.userId
+    const { currentPassword, newEmail, newPassword } = req.body as {
+      currentPassword: string
+      newEmail?: string
+      newPassword?: string
+    }
+
+    const admin = await prisma.user.findUnique({ where: { id: userId } })
+    if (!admin) { res.status(404).json({ error: 'Usuario no encontrado' }); return }
+
+    const isValid = await comparePassword(currentPassword, admin.passwordHash)
+    if (!isValid) {
+      res.status(401).json({ error: 'La contraseña actual es incorrecta' })
+      return
+    }
+
+    const updateData: { email?: string; passwordHash?: string } = {}
+
+    if (newEmail && newEmail !== admin.email) {
+      const exists = await prisma.user.findUnique({ where: { email: newEmail } })
+      if (exists) {
+        res.status(409).json({ error: 'Ese email ya está en uso' })
+        return
+      }
+      updateData.email = newEmail
+    }
+
+    if (newPassword) {
+      updateData.passwordHash = await hashPassword(newPassword)
+    }
+
+    await prisma.user.update({ where: { id: userId }, data: updateData })
+
+    // Revocar todos los refresh tokens para forzar nuevo login
+    await prisma.refreshToken.updateMany({
+      where: { userId, revoked: false },
+      data: { revoked: true },
+    })
+
+    res.json({ message: 'Credenciales actualizadas. Iniciá sesión nuevamente.' })
   } catch {
     res.status(500).json({ error: 'Error interno del servidor' })
   }

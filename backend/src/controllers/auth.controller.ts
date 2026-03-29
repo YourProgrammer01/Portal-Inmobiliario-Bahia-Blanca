@@ -1,13 +1,14 @@
 import { Request, Response } from 'express'
 import { prisma } from '../config/prisma'
 import https from 'https'
+import crypto from 'crypto'
 import {
   hashPassword, comparePassword, hashToken,
   signAccessToken, signRefreshToken, verifyRefreshToken,
   cookieOptions, refreshCookieOptions,
 } from '../utils/security'
 import { uploadImage } from '../config/cloudinary'
-import { sendWelcomeEmail } from '../config/mailer'
+import { sendWelcomeEmail, sendPasswordResetEmail } from '../config/mailer'
 import { AuthRequest } from '../middleware/auth.middleware'
 
 const MAX_LOGIN_ATTEMPTS = 5
@@ -328,6 +329,79 @@ export const logout = async (req: AuthRequest, res: Response): Promise<void> => 
 
     res.clearCookie('refreshToken', cookieOptions)
     res.json({ message: 'Sesión cerrada correctamente' })
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' })
+  }
+}
+
+export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body as { email: string }
+
+    // Respuesta genérica siempre para no revelar si el email existe
+    const genericResponse = { message: 'Si el email existe, recibirás un link para restablecer tu contraseña.' }
+
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user) { res.json(genericResponse); return }
+
+    const token = crypto.randomBytes(32).toString('hex')
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetPasswordToken: tokenHash,
+        resetPasswordExpires: new Date(Date.now() + 30 * 60 * 1000), // 30 minutos
+      },
+    })
+
+    const resetUrl = `${process.env['FRONTEND_URL']}/reset-password?token=${token}`
+    await sendPasswordResetEmail(email, resetUrl)
+
+    res.json(genericResponse)
+  } catch {
+    res.status(500).json({ error: 'Error interno del servidor' })
+  }
+}
+
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token, password } = req.body as { token: string; password: string }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+
+    const user = await prisma.user.findFirst({
+      where: {
+        resetPasswordToken: tokenHash,
+        resetPasswordExpires: { gt: new Date() },
+      },
+    })
+
+    if (!user) {
+      res.status(400).json({ error: 'El link es inválido o ya expiró. Solicitá uno nuevo.' })
+      return
+    }
+
+    const passwordHash = await hashPassword(password)
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+        loginAttempts: 0,
+        lockedUntil: null,
+      },
+    })
+
+    // Revocar todos los refresh tokens activos
+    await prisma.refreshToken.updateMany({
+      where: { userId: user.id, revoked: false },
+      data: { revoked: true },
+    })
+
+    res.json({ message: 'Contraseña actualizada correctamente. Ya podés iniciar sesión.' })
   } catch {
     res.status(500).json({ error: 'Error interno del servidor' })
   }

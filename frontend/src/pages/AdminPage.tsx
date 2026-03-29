@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import {
   Building2, Users, ShieldCheck, Clock, CheckCircle,
-  XCircle, Eye, LayoutDashboard, FileText, UserX, UserCheck, MapPin
+  XCircle, Eye, LayoutDashboard, FileText, UserX, UserCheck, MapPin, Settings
 } from 'lucide-react'
 import { useAdmin, PendingAgency, PendingParticular } from '../hooks/useAdmin'
 import {
   verifyAgencyService, verifyParticularService, getDocumentUrlsService,
   getAllUsersService, toggleSuspendService, AdminUser
 } from '../services/admin.service'
+import api from '../services/api'
+import { useAuth } from '../context/AuthContext'
 
-type Tab = 'dashboard' | 'agencies' | 'particulars' | 'users'
+type Tab = 'dashboard' | 'agencies' | 'particulars' | 'users' | 'settings'
 
 const StatCard = ({ icon: Icon, label, value, color }: {
   icon: React.ElementType; label: string; value: number | string; color: string
@@ -185,7 +187,29 @@ export const AdminPage = () => {
     }
   }
 
-  const handleVerifyAgency = async (id: string, status: 'APPROVED' | 'REJECTED', reason?: string) => {
+  const { logout } = useAuth()
+  const [credForm, setCredForm] = useState({ currentPassword: '', newEmail: '', newPassword: '' })
+  const [credMsg, setCredMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [credLoading, setCredLoading] = useState(false)
+
+  const handleCredentials = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setCredMsg(null)
+    setCredLoading(true)
+    try {
+      const payload: Record<string, string> = { currentPassword: credForm.currentPassword }
+      if (credForm.newEmail) payload.newEmail = credForm.newEmail
+      if (credForm.newPassword) payload.newPassword = credForm.newPassword
+      await api.patch('/admin/credentials', payload)
+      setCredMsg({ type: 'success', text: 'Credenciales actualizadas. Cerrando sesión...' })
+      setTimeout(() => logout(), 2000)
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+      setCredMsg({ type: 'error', text: msg ?? 'Error al actualizar credenciales' })
+    } finally {
+      setCredLoading(false)
+    }
+  }
     setProcessing(id)
     try {
       await verifyAgencyService(id, status, reason)
@@ -210,6 +234,7 @@ export const AdminPage = () => {
     { key: 'agencies', label: 'Inmobiliarias', icon: Building2, badge: pendingAgencies.length },
     { key: 'particulars', label: 'Particulares', icon: Users, badge: pendingParticulars.length },
     { key: 'users', label: 'Usuarios', icon: UserX },
+    { key: 'settings', label: 'Configuración', icon: Settings },
   ]
 
   return (
@@ -441,6 +466,60 @@ export const AdminPage = () => {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Configuración — credenciales admin */}
+      {tab === 'settings' && (
+        <div className="max-w-md space-y-6">
+          <p className="text-gray-600 text-sm flex items-center gap-2">
+            <Settings size={16} />
+            Cambiá tu email o contraseña de administrador
+          </p>
+          <form onSubmit={handleCredentials} className="card p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña actual <span className="text-red-500">*</span></label>
+              <input
+                type="password"
+                className="input-field"
+                value={credForm.currentPassword}
+                onChange={e => setCredForm(f => ({ ...f, currentPassword: e.target.value }))}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nuevo email <span className="text-gray-400 font-normal">(opcional)</span></label>
+              <input
+                type="email"
+                className="input-field"
+                placeholder="nuevo@email.com"
+                value={credForm.newEmail}
+                onChange={e => setCredForm(f => ({ ...f, newEmail: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nueva contraseña <span className="text-gray-400 font-normal">(opcional)</span></label>
+              <input
+                type="password"
+                className="input-field"
+                placeholder="Mín. 8 caracteres, mayúscula, número y símbolo"
+                value={credForm.newPassword}
+                onChange={e => setCredForm(f => ({ ...f, newPassword: e.target.value }))}
+              />
+            </div>
+            {credMsg && (
+              <p className={`text-sm p-3 rounded-lg ${
+                credMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+              }`}>{credMsg.text}</p>
+            )}
+            <button
+              type="submit"
+              disabled={credLoading || !credForm.currentPassword || (!credForm.newEmail && !credForm.newPassword)}
+              className="btn-primary w-full disabled:opacity-50"
+            >
+              {credLoading ? 'Guardando...' : 'Guardar cambios'}
+            </button>
+          </form>
         </div>
       )}
 

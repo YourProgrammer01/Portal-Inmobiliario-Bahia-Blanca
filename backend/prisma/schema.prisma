@@ -58,6 +58,8 @@ model User {
   isSuspended       Boolean            @default(false)
   lastLoginLocation String?
   lastLoginAt       DateTime?
+  resetPasswordToken String?
+  resetPasswordExpires DateTime?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   agency            Agency?

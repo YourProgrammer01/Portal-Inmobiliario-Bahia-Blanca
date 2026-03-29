@@ -89,6 +89,10 @@ export const LoginPage = () => {
           <button type="submit" disabled={isLoading} className="btn-primary w-full">
             {isLoading ? 'Ingresando...' : 'Ingresar'}
           </button>
+
+          <p className="text-center text-sm text-gray-500">
+            <Link to="/recuperar-password" className="text-primary-600 hover:underline">¿Olvidaste tu contraseña?</Link>
+          </p>
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-4">

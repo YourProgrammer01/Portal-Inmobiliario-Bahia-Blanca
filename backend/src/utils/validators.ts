@@ -80,3 +80,24 @@ export const verifyUserSchema = z.object({
   status: z.enum(['APPROVED', 'REJECTED']),
   rejectionReason: z.string().max(500).trim().optional(),
 })
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email().max(100).toLowerCase().trim(),
+})
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1).max(500),
+  password: z.string().regex(passwordRegex, {
+    message: 'La contraseña debe tener mínimo 8 caracteres, mayúscula, minúscula, número y símbolo',
+  }),
+})
+
+export const changeAdminCredentialsSchema = z.object({
+  currentPassword: z.string().min(1),
+  newEmail: z.string().email().max(100).toLowerCase().trim().optional(),
+  newPassword: z.string().regex(passwordRegex, {
+    message: 'La contraseña debe tener mínimo 8 caracteres, mayúscula, minúscula, número y símbolo',
+  }).optional(),
+}).refine(d => d.newEmail || d.newPassword, {
+  message: 'Debés proporcionar un nuevo email o contraseña',
+})

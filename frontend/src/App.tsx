@@ -10,6 +10,8 @@ import { PublishPropertyPage } from './pages/PublishPropertyPage'
 import { PropertyDetailPage } from './pages/PropertyDetailPage'
 import { EditPropertyPage } from './pages/EditPropertyPage'
 import { AdminPage } from './pages/AdminPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { SuspendedPage } from './pages/SuspendedPage'
 import { useAuth } from './context/AuthContext'
 
@@ -36,6 +38,8 @@ export default function App() {
               {/* Auth */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/registro" element={<RegisterPage />} />
+              <Route path="/recuperar-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
 
               {/* Inmobiliarias y Particulares */}
               <Route
