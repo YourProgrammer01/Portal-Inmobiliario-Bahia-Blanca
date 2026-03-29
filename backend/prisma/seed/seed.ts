@@ -3,20 +3,27 @@ import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
+const ADMIN_EMAIL = process.env['ADMIN_EMAIL'] ?? 'admin@pib.com.ar'
+const ADMIN_PASSWORD = process.env['ADMIN_PASSWORD'] ?? 'Admin1234!'
+
 async function main() {
   console.log('🌱 Iniciando seed...')
 
-  // Admin
-  const adminExists = await prisma.user.findUnique({ where: { email: 'admin@pib.com.ar' } })
-  if (!adminExists) {
-    await prisma.user.create({
-      data: {
-        email: 'admin@pib.com.ar',
-        passwordHash: await bcrypt.hash('Admin1234!', 12),
-        role: 'ADMIN',
-      },
+  // Admin — upsert para permitir actualizar credenciales
+  const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12)
+  const existingAdmin = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
+
+  if (existingAdmin) {
+    await prisma.user.update({
+      where: { id: existingAdmin.id },
+      data: { email: ADMIN_EMAIL, passwordHash },
     })
-    console.log('✅ Admin creado: admin@pib.com.ar / Admin1234!')
+    console.log(`✅ Admin actualizado: ${ADMIN_EMAIL}`)
+  } else {
+    await prisma.user.create({
+      data: { email: ADMIN_EMAIL, passwordHash, role: 'ADMIN' },
+    })
+    console.log(`✅ Admin creado: ${ADMIN_EMAIL}`)
   }
 
   // Inmobiliaria de prueba
